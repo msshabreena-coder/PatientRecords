@@ -2,24 +2,18 @@
 import os
 import sqlite3
 from contextlib import closing
-
 from flask import Flask, request, redirect, url_for, render_template_string
 
 app = Flask(__name__)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "patients.db")
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "patients.db")
 
 
 def get_db():
-    """Create a SQLite connection."""
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
-    return db
+    return sqlite3.connect(DATABASE)
 
 
 def init_db():
-    """Create the patient table and always close the connection."""
     with closing(get_db()) as db:
         db.execute("""
             CREATE TABLE IF NOT EXISTS patients (
@@ -36,200 +30,68 @@ def init_db():
 
 PAGE = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Patient Records Management System - V1</title>
+    <title>Patient Records Management System</title>
     <style>
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-
-        header {
-            background: #173b82;
-            color: white;
-            text-align: center;
-            padding: 24px 16px;
-        }
-
-        header h1 { margin-top: 0; }
-
-        main {
-            max-width: 1100px;
-            margin: 28px auto;
-            padding: 0 18px;
-        }
-
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            box-shadow: 0 3px 12px #0000000d;
-        }
-
-        form {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        label {
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 11px;
-            margin-top: 7px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 15px;
-        }
-
-        button {
-            background: #1769e0;
-            color: white;
-            border: 0;
-            border-radius: 6px;
-            padding: 12px 18px;
-            cursor: pointer;
-            font-size: 15px;
-        }
-
-        button:hover { background: #1254b8; }
-
-        .message {
-            padding: 12px;
-            border-radius: 6px;
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .table-wrap { overflow-x: auto; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        th { background: #eff6ff; }
-
-        @media (max-width: 650px) {
-            form { grid-template-columns: 1fr; }
-            .card { padding: 16px; }
-        }
+        body { font-family: Arial; max-width: 1000px; margin: 35px auto; }
+        input, button { padding: 9px; margin: 5px; }
+        input { box-sizing: border-box; max-width: 100%; }
+        form { margin-bottom: 18px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background: #e8eef8; }
+        .panel { background: #f6f8fb; padding: 18px; margin: 18px 0; }
     </style>
 </head>
 <body>
-<header>
     <h1>Patient Records Management System</h1>
-    <p>Version 1 — Add Patient Record</p>
     <p>Registration Number: 24MIS0124</p>
-</header>
+    <h3>Version 2 — Add and Search Patient Records</h3>
 
-<main>
-    <section class="card">
+    <div class="panel">
         <h2>Add Patient</h2>
-
-        {% if message %}
-            <p class="message">{{ message }}</p>
-        {% endif %}
-
-        {% if error %}
-            <p class="message error">{{ error }}</p>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('add_patient') }}">
-            <label>Patient ID
-                <input name="patient_id" required maxlength="30"
-                       placeholder="Example: P001">
-            </label>
-
-            <label>Patient Name
-                <input name="name" required maxlength="100">
-            </label>
-
-            <label>Age
-                <input name="age" type="number" min="0" max="120" required>
-            </label>
-
-            <label>Gender
-                <select name="gender" required>
-                    <option value="">Select gender</option>
-                    <option>Female</option>
-                    <option>Male</option>
-                    <option>Other</option>
-                    <option>Prefer not to say</option>
-                </select>
-            </label>
-
-            <label>Contact Number
-                <input name="contact" required maxlength="20">
-            </label>
-
-            <label>Address
-                <input name="address" required maxlength="250">
-            </label>
-
-            <button type="submit">Save Patient</button>
+        <form method="POST" action="/add">
+            <input name="patient_id" placeholder="Patient ID" required>
+            <input name="name" placeholder="Full name" required>
+            <input name="age" type="number" min="0" max="120"
+                   placeholder="Age" required>
+            <input name="gender" placeholder="Gender" required>
+            <input name="contact" placeholder="Contact" required>
+            <input name="address" placeholder="Address" required>
+            <button type="submit">Add Patient</button>
         </form>
-    </section>
+    </div>
 
-    <section class="card">
-        <h2>Patient Records</h2>
+    <div class="panel">
+        <h2>Search Patients</h2>
+        <form method="GET" action="/">
+            <input name="q" value="{{ query }}"
+                   placeholder="Search by patient ID or name">
+            <button type="submit">Search</button>
+            <a href="/">Show All</a>
+        </form>
+    </div>
 
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Patient ID</th>
-                        <th>Name</th>
-                        <th>Age</th>
-                        <th>Gender</th>
-                        <th>Contact</th>
-                        <th>Address</th>
-                    </tr>
-                </thead>
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
 
-                <tbody>
-                    {% for patient in patients %}
-                    <tr>
-                        <td>{{ patient["patient_id"] }}</td>
-                        <td>{{ patient["name"] }}</td>
-                        <td>{{ patient["age"] }}</td>
-                        <td>{{ patient["gender"] }}</td>
-                        <td>{{ patient["contact"] }}</td>
-                        <td>{{ patient["address"] }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6">No patient records added yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-</main>
+    <h2>Patient Records ({{ patients|length }})</h2>
+    <table>
+        <tr>
+            <th>Patient ID</th><th>Name</th><th>Age</th>
+            <th>Gender</th><th>Contact</th><th>Address</th>
+        </tr>
+        {% for p in patients %}
+        <tr>
+            <td>{{ p[0] }}</td><td>{{ p[1] }}</td><td>{{ p[2] }}</td>
+            <td>{{ p[3] }}</td><td>{{ p[4] }}</td><td>{{ p[5] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No matching patient records found.</td></tr>
+        {% endfor %}
+    </table>
 </body>
 </html>
 """
@@ -237,65 +99,65 @@ PAGE = """
 
 @app.route("/")
 def home():
-    # Always close the database connection, including when an error occurs.
+    query = request.args.get("q", "").strip()
+
     with closing(get_db()) as db:
-        patients = db.execute(
-            "SELECT * FROM patients ORDER BY patient_id"
-        ).fetchall()
+        if query:
+            patients = db.execute("""
+                SELECT * FROM patients
+                WHERE patient_id LIKE ? OR name LIKE ?
+                ORDER BY patient_id
+            """, (f"%{query}%", f"%{query}%")).fetchall()
+        else:
+            patients = db.execute(
+                "SELECT * FROM patients ORDER BY patient_id"
+            ).fetchall()
 
     return render_template_string(
-        PAGE,
-        patients=patients,
-        message=request.args.get("message", ""),
-        error=request.args.get("error", "")
+        PAGE, patients=patients, query=query, message=""
     )
 
 
 @app.route("/add", methods=["POST"])
 def add_patient():
-    patient_id = request.form.get("patient_id", "").strip()
-    name = request.form.get("name", "").strip()
-    age_text = request.form.get("age", "").strip()
-    gender = request.form.get("gender", "").strip()
-    contact = request.form.get("contact", "").strip()
-    address = request.form.get("address", "").strip()
+    data = {
+        key: request.form.get(key, "").strip()
+        for key in [
+            "patient_id", "name", "age",
+            "gender", "contact", "address"
+        ]
+    }
 
-    if not all([patient_id, name, age_text, gender, contact, address]):
-        return redirect(url_for(
-            "home", error="All fields are required."
-        ))
+    if not all(data.values()):
+        return "All fields are required.", 400
 
     try:
-        age = int(age_text)
+        age = int(data["age"])
         if not 0 <= age <= 120:
             raise ValueError
     except ValueError:
-        return redirect(url_for(
-            "home", error="Enter a valid age from 0 to 120."
-        ))
+        return "Age must be an integer from 0 to 120.", 400
 
     db = get_db()
     try:
         db.execute("""
             INSERT INTO patients
-                (patient_id, name, age, gender, contact, address)
+            (patient_id, name, age, gender, contact, address)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (patient_id, name, age, gender, contact, address))
-        db.commit()
-
-    except sqlite3.IntegrityError:
-        return redirect(url_for(
-            "home", error="That patient ID already exists."
+        """, (
+            data["patient_id"], data["name"], age,
+            data["gender"], data["contact"], data["address"]
         ))
-
+        db.commit()
+    except sqlite3.IntegrityError:
+        return "A patient with this ID already exists.", 409
     finally:
         db.close()
 
-    return redirect(url_for(
-        "home", message="Patient record added successfully."
-    ))
+    return redirect(url_for("home"))
 
+
+init_db()
 
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=5000, debug=False)
